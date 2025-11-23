@@ -47,7 +47,7 @@ node_filesystem_size_bytes{ mountpoint!~"/(boot|efi|snap|var/lib/docker).*"} / 1
 Создайте для каждой Dashboard подходящее правило alert — можно обратиться к первой лекции в блоке «Мониторинг».
 В качестве решения задания приведите скриншот вашей итоговой Dashboard.
 
-# Я использовал новую версию Grafana гже уже не legacy alerting, unified alerting, там можно создавать правила алертов не привязвая их к панелям дашборда.
+# Я использовал новую версию Grafana где уже не legacy alerting, unified alerting, там можно создавать правила алертов не привязвая их к панелям дашборда.
 
 ![alt text](https://raw.githubusercontent.com/hawk0774/grafana1/main/Screenshot_5.png)
 
@@ -59,4 +59,97 @@ node_filesystem_size_bytes{ mountpoint!~"/(boot|efi|snap|var/lib/docker).*"} / 1
 Задание 4
 Сохраните ваш Dashboard.Для этого перейдите в настройки Dashboard, выберите в боковом меню «JSON MODEL». Далее скопируйте отображаемое json-содержимое в отдельный файл и сохраните его.
 В качестве решения задания приведите листинг этого файла.
+https://github.com/hawk0774/grafana1/blob/main/grafana-dashboard.json
+
+```json
+{
+  "title": "Linux Host Overview — CPU / Load / RAM / Disk",
+  "uid": "linux-simple-overview-2025",
+  "version": 4,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU Utilization",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "instant": true
+        }
+      ],
+      "unit": "percent",
+      "thresholds": [
+        { "color": "green", "value": 0 },
+        { "color": "yellow", "value": 75 },
+        { "color": "red", "value": 90 }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Load Average (1 / 5 / 15)",
+      "type": "stat",
+      "orientation": "horizontal",
+      "targets": [
+        { "expr": "node_load1",   "legendFormat": "1m" },
+        { "expr": "node_load5",   "legendFormat": "5m" },
+        { "expr": "node_load15",  "legendFormat": "15m" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Free Memory",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "(node_memory_MemAvailable_bytes or (node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes)) / 1024 / 1024 / 1024",
+          "instant": true
+        }
+      ],
+      "unit": "decgbytes"
+    },
+    {
+      "id": 4,
+      "title": "Disk Free Space",
+      "type": "table",
+      "targets": [
+        {
+          "refId": "Free",
+          "expr": "node_filesystem_free_bytes{ mountpoint=~\"/.*\"} / 1024 / 1024 / 1024",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "Total",
+          "expr": "node_filesystem_size_bytes{ mountpoint!~\"/(boot|efi|snap|var/lib/docker).*\"} / 1024 / 1024 / 1024",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "merge" },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "mountpoint": "Mount Point",
+              "Value #Free": "Free (GB)",
+              "Value #Total": "Total (GB)"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Used %",
+            "calc": "100 - ($left / $right * 100)",
+            "left": "Free (GB)",
+            "right": "Total (GB)"
+          }
+        }
+      ]
+    }
+  ]
+}
 
